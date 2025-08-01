@@ -1,6 +1,7 @@
 package com.tien.project.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.tien.project.entity.enums.ERole;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,8 +24,9 @@ public class Role {
     @Column(name = "role_id")
     private Integer roleId;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "role_name", nullable = false, unique = true, length = 50)
-    private String roleName;
+    private ERole roleName;
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;

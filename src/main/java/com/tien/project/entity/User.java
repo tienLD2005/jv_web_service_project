@@ -53,4 +53,18 @@ public class User {
     @OneToMany(mappedBy = "user")
     @JsonIgnore
     private List<UserRole> userRoles;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    @JsonIgnore
+    private Customer customer;
+
+    @OneToMany(mappedBy = "user")
+    @JsonIgnore
+    private List<Session> sessions;
+
+    @OneToMany(mappedBy = "user")
+    @JsonIgnore
+    private List<Notification> notifications;
+    private String otp;
+
 }

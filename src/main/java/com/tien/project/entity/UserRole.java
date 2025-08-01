@@ -1,11 +1,8 @@
 package com.tien.project.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
+import lombok.Data;
 import java.time.LocalDateTime;
 
 
@@ -13,10 +10,7 @@ import java.time.LocalDateTime;
 @Table(name = "UserRoles", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"user_id", "role_id"})
 })
-@AllArgsConstructor
-@NoArgsConstructor
 @Data
-@Builder
 public class UserRole {
 
     @Id
@@ -35,5 +29,12 @@ public class UserRole {
     @Column(name = "assigned_at", nullable = false, columnDefinition = "DATETIME DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime assignedAt;
 
-    // Getters, Setters, Constructors
+    public UserRole(User user, Role role) {
+        this.user = user;
+        this.role = role;
+    }
+
+    public UserRole() {
+
+    }
 }
