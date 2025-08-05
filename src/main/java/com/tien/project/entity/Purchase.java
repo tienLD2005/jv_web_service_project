@@ -1,47 +1,44 @@
 package com.tien.project.entity;
-import com.tien.project.entity.enums.EPurchase;
-import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
+import jakarta.persistence.*;
+import lombok.*;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 @Entity
-@Table(name = "Purchases")
+@Table(name = "purchases")
+@Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Data
-@Builder
 public class Purchase {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "purchase_id")
     private Integer purchaseId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customer_id", nullable = false)
-    private Customer customer;
+    @Column(name = "customer_id", nullable = false)
+    private Integer customerId;
 
-    @Column(name = "purchase_date", nullable = false, columnDefinition = "DATETIME DEFAULT CURRENT_TIMESTAMP")
-    private LocalDateTime purchaseDate;
+    @Column(name = "purchase_date", nullable = false)
+    private LocalDateTime purchaseDate = LocalDateTime.now();
 
-    @Column(name = "total_amount", nullable = false, precision = 15, scale = 2)
+    @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount;
 
-    @Column(name = "currency", nullable = false, length = 10, columnDefinition = "VARCHAR(10) DEFAULT 'VND'")
-    private String currency;
+    @Column(name = "currency", length = 10, nullable = false)
+    private String currency = "VND";
 
     @Column(name = "payment_method", length = 50)
     private String paymentMethod;
 
-    @Column(name = "status", nullable = false, columnDefinition = "ENUM('PENDING', 'COMPLETED', 'CANCELLED') DEFAULT 'COMPLETED'")
-    private EPurchase status;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private PurchaseStatus status = PurchaseStatus.COMPLETED;
 
-    @Column(name = "notes", columnDefinition = "TEXT")
+    @Column(name = "notes")
     private String notes;
 
+    public enum PurchaseStatus {
+        PENDING, COMPLETED, CANCELLED
+    }
 }

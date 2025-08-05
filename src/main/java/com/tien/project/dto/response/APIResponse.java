@@ -1,11 +1,8 @@
 package com.tien.project.dto.response;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
+import lombok.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @AllArgsConstructor
@@ -13,17 +10,25 @@ import java.time.LocalDateTime;
 public class APIResponse<T> {
     private Boolean success;
     private String message;
-    private T data;
-    private Object errors;
+    private DataWrapper<T> data;
+    private List<ErrorDetail> errors; // Tham chiếu đến ErrorDetail riêng biệt
+    private String timestamp = LocalDateTime.now().toString();
 
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
-    private LocalDateTime timestamp;
-
-    public static <T> APIResponse<T> success(T data, String message) {
-        return new APIResponse<>(true, message, data, null, LocalDateTime.now());
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class DataWrapper<U> {
+        private List<U> items;
+        private Pagination pagination;
     }
 
-    public static <T> APIResponse<T> error(String message, Object errors) {
-        return new APIResponse<>(false, message, null, errors, LocalDateTime.now());
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class Pagination {
+        private Integer currentPage;
+        private Integer pageSize;
+        private Integer totalPages;
+        private Long totalItems;
     }
 }

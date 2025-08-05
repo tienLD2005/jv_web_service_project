@@ -1,33 +1,27 @@
 package com.tien.project.entity;
-import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
+import jakarta.persistence.*;
+import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "Sessions")
+@Table(name = "sessions")
+@Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Data
-@Builder
 public class Session {
-
     @Id
-    @Column(name = "session_id", nullable = false, length = 255)
+    @Column(name = "session_id", length = 255)
     private String sessionId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @Column(name = "user_id", nullable = false)
+    private Integer userId;
 
-    @Column(name = "login_time", nullable = false, columnDefinition = "DATETIME DEFAULT CURRENT_TIMESTAMP")
-    private LocalDateTime loginTime;
+    @Column(name = "login_time", nullable = false)
+    private LocalDateTime loginTime = LocalDateTime.now();
 
-    @Column(name = "last_activity_time", nullable = false, columnDefinition = "DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
-    private LocalDateTime lastActivityTime;
+    @Column(name = "last_activity_time", nullable = false)
+    private LocalDateTime lastActivityTime = LocalDateTime.now();
 
     @Column(name = "expiry_time", nullable = false)
     private LocalDateTime expiryTime;
@@ -37,6 +31,4 @@ public class Session {
 
     @Column(name = "user_agent", length = 255)
     private String userAgent;
-
 }
-

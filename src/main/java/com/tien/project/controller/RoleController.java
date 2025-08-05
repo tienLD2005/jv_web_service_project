@@ -1,48 +1,51 @@
 package com.tien.project.controller;
 
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import com.tien.project.dto.response.APIResponse;
 import com.tien.project.entity.Role;
 import com.tien.project.service.RoleService;
-
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/roles")
-@RequiredArgsConstructor
 public class RoleController {
-    private final RoleService roleService;
+
+    @Autowired
+    private RoleService roleService;
 
     @GetMapping
-    public ResponseEntity<List<Role>> getAllRoles() {
-        return ResponseEntity.ok(roleService.getAllRoles());
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<APIResponse<Role>> getAllRoles() {
+        List<Role> roles = roleService.getAllRoles();
+        APIResponse.DataWrapper<Role> data = new APIResponse.DataWrapper<>(roles, null);
+        return new ResponseEntity<>(new APIResponse<>(true, "Roles retrieved successfully", data, null, null), HttpStatus.OK);
     }
 
     @PostMapping
-    public ResponseEntity<Role> createRole(@RequestBody Role role) {
-        return ResponseEntity.ok(roleService.createRole(role));
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<APIResponse<Role>> createRole(@RequestBody Role role) {
+        Role createdRole = roleService.createRole(role);
+        APIResponse.DataWrapper<Role> data = new APIResponse.DataWrapper<>(List.of(createdRole), null);
+        return new ResponseEntity<>(new APIResponse<>(true, "Role created successfully", data, null, null), HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Role> updateRole(@PathVariable Integer id, @RequestBody Role role) {
-        return ResponseEntity.ok(roleService.updateRole(id, role));
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<APIResponse<Role>> updateRole(@PathVariable Integer id, @RequestBody Role role) {
+        Role updatedRole = roleService.updateRole(id, role);
+        APIResponse.DataWrapper<Role> data = new APIResponse.DataWrapper<>(List.of(updatedRole), null);
+        return new ResponseEntity<>(new APIResponse<>(true, "Role updated successfully", data, null, null), HttpStatus.OK);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteRole(@PathVariable Integer id) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<APIResponse<String>> deleteRole(@PathVariable Integer id) {
         roleService.deleteRole(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping("/filter")
-    public ResponseEntity<Page<Role>> filterRoles(@RequestParam(defaultValue = "") String keyword,
-                                                  @RequestParam(defaultValue = "0") int page,
-                                                  @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return ResponseEntity.ok(roleService.getRolesWithFilter(keyword, pageable));
+        APIResponse.DataWrapper<String> data = new APIResponse.DataWrapper<>(List.of("Role deleted"), null);
+        return new ResponseEntity<>(new APIResponse<>(true, "Role deleted successfully", data, null, null), HttpStatus.OK);
     }
 }

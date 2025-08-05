@@ -5,30 +5,25 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "user_roles")
+@Table(name = "email_verification_tokens")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class UserRole {
+public class EmailVerificationToken {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "user_role_id")
-    private Integer userRoleId;
+    private Integer id;
+
+    @Column(name = "token", nullable = false, unique = true)
+    private String token;
 
     @Column(name = "user_id", nullable = false)
     private Integer userId;
 
-    @Column(name = "role_id", nullable = false)
-    private Integer roleId;
-
-    @Column(name = "assigned_at", nullable = false)
-    private LocalDateTime assignedAt = LocalDateTime.now();
+    @Column(name = "expiry_date", nullable = false)
+    private LocalDateTime expiryDate;
 
     @ManyToOne
     @JoinColumn(name = "user_id", insertable = false, updatable = false)
     private User user;
-
-    @ManyToOne
-    @JoinColumn(name = "role_id", insertable = false, updatable = false)
-    private Role role;
 }

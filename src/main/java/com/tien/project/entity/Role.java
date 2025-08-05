@@ -1,37 +1,23 @@
 package com.tien.project.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.tien.project.entity.enums.ERole;
-import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-import java.util.List;
+import jakarta.persistence.*;
+import lombok.*;
 
 @Entity
-@Table(name = "Roles")
+@Table(name = "roles")
+@Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Data
-@Builder
 public class Role {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "role_id")
     private Integer roleId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "role_name", nullable = false, unique = true, length = 50)
-    private ERole roleName;
+    @Column(name = "role_name", length = 50, unique = true, nullable = false)
+    private String roleName;
 
-    @Column(name = "description", columnDefinition = "TEXT")
+    @Column(name = "description")
     private String description;
-
-    @OneToMany(mappedBy = "role")
-    @JsonIgnore
-    private List<UserRole> userRoles;
 }

@@ -17,14 +17,7 @@ public class JWTResponse {
     private String fullName;
     private String email;
     private String phone;
+    private Boolean enabled;
     private Collection<? extends GrantedAuthority> authorities;
     private String token;
-
-    private String refreshToken;
-
-
-    public JWTResponse(String accessToken, String token){
-        this.token = accessToken;
-        this.refreshToken = token;
-    }
 }
