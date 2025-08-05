@@ -2,13 +2,12 @@ package com.tien.project.controller;
 
 import com.tien.project.dto.request.CustomerGroupRequest;
 import com.tien.project.dto.request.CustomerRequest;
+import com.tien.project.dto.request.PurchaseRequest;
 import com.tien.project.dto.request.UserRoleRequest;
 import com.tien.project.dto.response.APIResponse;
-import com.tien.project.entity.Customer;
-import com.tien.project.entity.CustomerGroup;
-import com.tien.project.entity.Role;
-import com.tien.project.entity.UserRole;
+import com.tien.project.entity.*;
 import com.tien.project.service.CustomerService;
+import com.tien.project.service.PurchaseService;
 import com.tien.project.service.UserRoleService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +30,10 @@ public class CustomerController {
 
     @Autowired
     private UserRoleService userRoleService;
+
+    @Autowired
+    private PurchaseService purchaseService;
+
 
     // Get role details
     @GetMapping("/roles/{roleId}")
@@ -157,5 +160,50 @@ public class CustomerController {
         customerService.updateCustomerStatus(customerId, status);
         APIResponse.DataWrapper<String> data = new APIResponse.DataWrapper<>(List.of("Customer status updated"), null);
         return new ResponseEntity<>(new APIResponse<>(true, "Customer status updated successfully", data, null, null), HttpStatus.OK);
+    }
+
+    // Soft delete customer
+    @DeleteMapping("/{customerId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<APIResponse<String>> softDeleteCustomer(@PathVariable Integer customerId) {
+        boolean deleted = customerService.softDeleteCustomer(customerId);
+        APIResponse.DataWrapper<String> data = new APIResponse.DataWrapper<>(List.of(deleted ? "Customer soft deleted" : "Customer not found"), null);
+        return new ResponseEntity<>(new APIResponse<>(deleted, deleted ? "Khách hàng đã được xóa mềm" : "Không tìm thấy khách hàng", data, null, null), deleted ? HttpStatus.OK : HttpStatus.NOT_FOUND);
+    }
+
+    // Get purchase history of customer
+    @GetMapping("/{customerId}/purchases")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    public ResponseEntity<APIResponse<Purchase>> getPurchases(@PathVariable Integer customerId) {
+        List<Purchase> purchases = purchaseService.getPurchasesByCustomerId(customerId);
+        APIResponse.DataWrapper<Purchase> data = new APIResponse.DataWrapper<>(purchases, null);
+        return new ResponseEntity<>(new APIResponse<>(true, "Lịch sử mua hàng đã lấy thành công", data, null, null), HttpStatus.OK);
+    }
+
+    // Add new purchase
+    @PostMapping("/{customerId}/purchases")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    public ResponseEntity<APIResponse<Purchase>> addPurchase(@PathVariable Integer customerId, @Valid @RequestBody PurchaseRequest request) {
+        Purchase purchase = purchaseService.addPurchase(customerId, request);
+        APIResponse.DataWrapper<Purchase> data = new APIResponse.DataWrapper<>(List.of(purchase), null);
+        return new ResponseEntity<>(new APIResponse<>(true, "Thêm giao dịch thành công", data, null, null), HttpStatus.CREATED);
+    }
+
+    // Update purchase
+    @PutMapping("/{customerId}/purchases/{purchaseId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    public ResponseEntity<APIResponse<Purchase>> updatePurchase(@PathVariable Integer customerId, @PathVariable Integer purchaseId, @Valid @RequestBody PurchaseRequest request) {
+        Purchase purchase = purchaseService.updatePurchase(customerId, purchaseId, request);
+        APIResponse.DataWrapper<Purchase> data = new APIResponse.DataWrapper<>(purchase != null ? List.of(purchase) : List.of(), null);
+        return new ResponseEntity<>(new APIResponse<>(purchase != null, purchase != null ? "Cập nhật giao dịch thành công" : "Không tìm thấy giao dịch", data, null, null), purchase != null ? HttpStatus.OK : HttpStatus.NOT_FOUND);
+    }
+
+    // Delete purchase
+    @DeleteMapping("/{customerId}/purchases/{purchaseId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<APIResponse<String>> deletePurchase(@PathVariable Integer customerId, @PathVariable Integer purchaseId) {
+        boolean deleted = purchaseService.deletePurchase(customerId, purchaseId);
+        APIResponse.DataWrapper<String> data = new APIResponse.DataWrapper<>(List.of(deleted ? "Purchase deleted" : "Purchase not found"), null);
+        return new ResponseEntity<>(new APIResponse<>(deleted, deleted ? "Xóa giao dịch thành công" : "Không tìm thấy giao dịch", data, null, null), deleted ? HttpStatus.OK : HttpStatus.NOT_FOUND);
     }
 }

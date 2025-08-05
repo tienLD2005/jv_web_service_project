@@ -151,4 +151,16 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setUpdatedAt(LocalDateTime.now());
         customerRepository.save(customer);
     }
+
+    @Override
+    public boolean softDeleteCustomer(Integer customerId) {
+        Customer customer = customerRepository.findById(customerId).orElse(null);
+        if (customer != null) {
+            customer.setStatus(Customer.CustomerStatus.INACTIVE);
+            customer.setUpdatedAt(LocalDateTime.now());
+            customerRepository.save(customer);
+            return true;
+        }
+        return false;
+    }
 }

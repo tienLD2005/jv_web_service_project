@@ -17,4 +17,6 @@ public interface CustomerService {
     Customer createCustomer(CustomerRequest request);
     Customer updateCustomer(Integer customerId, CustomerRequest request, String username);
     void updateCustomerStatus(Integer customerId, Customer.CustomerStatus status);
+
+    boolean softDeleteCustomer(Integer customerId);
 }
