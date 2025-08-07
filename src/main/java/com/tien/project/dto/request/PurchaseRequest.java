@@ -1,5 +1,6 @@
 package com.tien.project.dto.request;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
@@ -13,19 +14,18 @@ import java.math.BigDecimal;
 @Data
 public class PurchaseRequest {
 
-    @NotNull
+    @NotNull(message = "Tổng tiền không được để trống")
+    @Positive(message = "Tổng tiền phải lớn hơn 0")
     private BigDecimal totalAmount;
 
-    @NotNull
+    @NotBlank(message = "Đơn vị tiền tệ không được để trống")
     private String currency;
 
-    @NotNull
+    @NotBlank(message = "Phương thức thanh toán không được để trống")
     private String paymentMethod;
 
-    @NotNull
+    @NotBlank(message = "Trạng thái không được để trống")
     private String status;
 
     private String notes;
-
-
 }

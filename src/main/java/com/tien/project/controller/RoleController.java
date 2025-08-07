@@ -16,7 +16,7 @@ public class RoleController {
 
     @Autowired
     private RoleService roleService;
-
+//================================================QUẢN LÝ ROLE===============================================
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<APIResponse<Role>> getAllRoles() {

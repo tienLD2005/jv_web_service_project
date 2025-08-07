@@ -1,7 +1,7 @@
 package com.tien.project.dto.request;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -10,17 +10,18 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class CustomerRequest {
-    @NotNull(message = "User ID is required")
+
+    @NotNull(message = "ID người dùng không được để trống")
     private Integer userId;
 
     private Integer groupId;
 
-    @Size(max = 255, message = "Address must not exceed 255 characters")
+    @NotBlank(message = "Địa chỉ không được để trống")
     private String address;
 
-    @Size(max = 100, message = "City must not exceed 100 characters")
+    @NotBlank(message = "Thành phố không được để trống")
     private String city;
 
-    @Size(max = 100, message = "Country must not exceed 100 characters")
+    @NotBlank(message = "Quốc gia không được để trống")
     private String country;
 }

@@ -5,6 +5,7 @@ import com.tien.project.dto.request.CustomerRequest;
 import com.tien.project.dto.request.PurchaseRequest;
 import com.tien.project.dto.request.UserRoleRequest;
 import com.tien.project.dto.response.APIResponse;
+import com.tien.project.dto.response.ErrorDetail;
 import com.tien.project.entity.*;
 import com.tien.project.service.CustomerService;
 import com.tien.project.service.PurchaseService;
@@ -17,9 +18,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
+
+import static com.tien.project.utils.ValidationUtils.extractErrors;
 
 @RestController
 @RequestMapping("/api/v1/customers")
@@ -34,83 +39,75 @@ public class CustomerController {
     @Autowired
     private PurchaseService purchaseService;
 
+    /// ======================= PHÂN QUYỀN CHO USER (START)=====================
 
-    // Get role details
     @GetMapping("/roles/{roleId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<APIResponse<Role>> getRoleDetails(@PathVariable Integer roleId) {
-        Role role = userRoleService.getRoleDetails(roleId);
-        APIResponse.DataWrapper<Role> data = new APIResponse.DataWrapper<>(List.of(role), null);
-        return new ResponseEntity<>(new APIResponse<>(true, "Role details retrieved successfully", data, null, null), HttpStatus.OK);
+        try {
+            Role role = userRoleService.getRoleDetails(roleId);
+            APIResponse.DataWrapper<Role> data = new APIResponse.DataWrapper<>(List.of(role), null);
+            return ResponseEntity.ok(new APIResponse<>(true, "Lấy thông tin chi tiết vai trò thành công", data, null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>(false, e.getMessage(), null, null));
+        }
     }
 
-    // Assign role to user
     @PostMapping("/roles")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<APIResponse<UserRole>> assignRole(@Valid @RequestBody UserRoleRequest request) {
-        UserRole userRole = userRoleService.assignRole(request.getUserId(), request.getRoleId());
-        APIResponse.DataWrapper<UserRole> data = new APIResponse.DataWrapper<>(List.of(userRole), null);
-        return new ResponseEntity<>(new APIResponse<>(true, "Role assigned successfully", data, null, null), HttpStatus.CREATED);
+    public ResponseEntity<APIResponse<UserRole>> assignRole(@Valid @RequestBody UserRoleRequest request, BindingResult result) {
+        if (result.hasErrors()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>(false, "Dữ liệu không hợp lệ", null, extractErrors(result)));
+        }
+        try {
+            UserRole userRole = userRoleService.assignRole(request.getUserId(), request.getRoleId());
+            APIResponse.DataWrapper<UserRole> data = new APIResponse.DataWrapper<>(List.of(userRole), null);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(new APIResponse<>(true, "Gán vai trò thành công", data, null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>(false, e.getMessage(), null, null));
+        }
     }
 
-    // Update role assignment
     @PutMapping("/roles/{userRoleId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<APIResponse<UserRole>> updateRoleAssignment(@PathVariable Integer userRoleId, @Valid @RequestBody UserRoleRequest request) {
-        UserRole userRole = userRoleService.updateRoleAssignment(userRoleId, request.getRoleId());
-        APIResponse.DataWrapper<UserRole> data = new APIResponse.DataWrapper<>(List.of(userRole), null);
-        return new ResponseEntity<>(new APIResponse<>(true, "Role assignment updated successfully", data, null, null), HttpStatus.OK);
+    public ResponseEntity<APIResponse<UserRole>> updateRoleAssignment(@PathVariable Integer userRoleId, @Valid @RequestBody UserRoleRequest request, BindingResult result) {
+        if (result.hasErrors()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>(false, "Dữ liệu không hợp lệ", null, extractErrors(result)));
+        }
+        try {
+            UserRole userRole = userRoleService.updateRoleAssignment(userRoleId, request.getRoleId());
+            APIResponse.DataWrapper<UserRole> data = new APIResponse.DataWrapper<>(List.of(userRole), null);
+            return ResponseEntity.ok(new APIResponse<>(true, "Cập nhật vai trò thành công", data, null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>(false, e.getMessage(), null, null));
+        }
     }
 
-    // Revoke role from user
     @DeleteMapping("/roles/{userRoleId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<APIResponse<String>> revokeRole(@PathVariable Integer userRoleId) {
-        userRoleService.revokeRole(userRoleId);
-        APIResponse.DataWrapper<String> data = new APIResponse.DataWrapper<>(List.of("Role revoked"), null);
-        return new ResponseEntity<>(new APIResponse<>(true, "Role revoked successfully", data, null, null), HttpStatus.OK);
+        try {
+            userRoleService.revokeRole(userRoleId);
+            APIResponse.DataWrapper<String> data = new APIResponse.DataWrapper<>(List.of("Đã thu hồi vai trò"), null);
+            return ResponseEntity.ok(new APIResponse<>(true, "Thu hồi vai trò thành công", data, null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>(false, e.getMessage(), null, null));
+        }
     }
+/// ======================= PHÂN QUYỀN CHO USER (END)=====================
 
-    // Get customer groups
-    @GetMapping("/groups")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
-    public ResponseEntity<APIResponse<CustomerGroup>> getCustomerGroups(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        Page<CustomerGroup> groupPage = customerService.getCustomerGroups(PageRequest.of(page, size));
-        APIResponse.Pagination pagination = new APIResponse.Pagination(page, size, groupPage.getTotalPages(), groupPage.getTotalElements());
-        APIResponse.DataWrapper<CustomerGroup> data = new APIResponse.DataWrapper<>(groupPage.getContent(), pagination);
-        return new ResponseEntity<>(new APIResponse<>(true, "Customer groups retrieved successfully", data, null, null), HttpStatus.OK);
-    }
 
-    // Create customer group
-    @PostMapping("/groups")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<APIResponse<CustomerGroup>> createCustomerGroup(@Valid @RequestBody CustomerGroupRequest request) {
-        CustomerGroup group = customerService.createCustomerGroup(request);
-        APIResponse.DataWrapper<CustomerGroup> data = new APIResponse.DataWrapper<>(List.of(group), null);
-        return new ResponseEntity<>(new APIResponse<>(true, "Customer group created successfully", data, null, null), HttpStatus.CREATED);
-    }
 
-    // Update customer group
-    @PutMapping("/groups/{groupId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<APIResponse<CustomerGroup>> updateCustomerGroup(@PathVariable Integer groupId, @Valid @RequestBody CustomerGroupRequest request) {
-        CustomerGroup group = customerService.updateCustomerGroup(groupId, request);
-        APIResponse.DataWrapper<CustomerGroup> data = new APIResponse.DataWrapper<>(List.of(group), null);
-        return new ResponseEntity<>(new APIResponse<>(true, "Customer group updated successfully", data, null, null), HttpStatus.OK);
-    }
 
-    // Delete customer group
-    @DeleteMapping("/groups/{groupId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<APIResponse<String>> deleteCustomerGroup(@PathVariable Integer groupId) {
-        customerService.deleteCustomerGroup(groupId);
-        APIResponse.DataWrapper<String> data = new APIResponse.DataWrapper<>(List.of("Customer group deleted"), null);
-        return new ResponseEntity<>(new APIResponse<>(true, "Customer group deleted successfully", data, null, null), HttpStatus.OK);
-    }
+    /// ======================= QUẢN LÝ KHÁCH HÀNG (START)=====================
 
-    // Get customers with filter and pagination
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'CUSTOMER')")
     public ResponseEntity<APIResponse<Customer>> getCustomers(
@@ -119,91 +116,160 @@ public class CustomerController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Integer groupId,
             Authentication authentication) {
-        String username = authentication.getName();
-        Page<Customer> customerPage = customerService.getCustomers(PageRequest.of(page, size), status, groupId, username);
-        APIResponse.Pagination pagination = new APIResponse.Pagination(page, size, customerPage.getTotalPages(), customerPage.getTotalElements());
-        APIResponse.DataWrapper<Customer> data = new APIResponse.DataWrapper<>(customerPage.getContent(), pagination);
-        return new ResponseEntity<>(new APIResponse<>(true, "Customers retrieved successfully", data, null, null), HttpStatus.OK);
+        try {
+            String username = authentication.getName();
+            Page<Customer> customerPage = customerService.getCustomers(PageRequest.of(page, size), status, groupId, username);
+            APIResponse.Pagination pagination = new APIResponse.Pagination(page, size, customerPage.getTotalPages(), customerPage.getTotalElements());
+            APIResponse.DataWrapper<Customer> data = new APIResponse.DataWrapper<>(customerPage.getContent(), pagination);
+            return ResponseEntity.ok(new APIResponse<>(true, "Lấy danh sách khách hàng thành công", data, null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>(false, e.getMessage(), null, null));
+        }
     }
 
-    // Get customer details
     @GetMapping("/{customerId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'CUSTOMER')")
     public ResponseEntity<APIResponse<Customer>> getCustomerDetails(@PathVariable Integer customerId, Authentication authentication) {
-        Customer customer = customerService.getCustomerDetails(customerId, authentication.getName());
-        APIResponse.DataWrapper<Customer> data = new APIResponse.DataWrapper<>(List.of(customer), null);
-        return new ResponseEntity<>(new APIResponse<>(true, "Customer details retrieved successfully", data, null, null), HttpStatus.OK);
+        try {
+            Customer customer = customerService.getCustomerDetails(customerId, authentication.getName());
+            APIResponse.DataWrapper<Customer> data = new APIResponse.DataWrapper<>(List.of(customer), null);
+            return ResponseEntity.ok(new APIResponse<>(true, "Lấy thông tin chi tiết khách hàng thành công", data, null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>(false, e.getMessage(), null, null));
+        }
     }
 
-    // Create customer
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<APIResponse<Customer>> createCustomer(@Valid @RequestBody CustomerRequest request) {
-        Customer customer = customerService.createCustomer(request);
-        APIResponse.DataWrapper<Customer> data = new APIResponse.DataWrapper<>(List.of(customer), null);
-        return new ResponseEntity<>(new APIResponse<>(true, "Customer created successfully", data, null, null), HttpStatus.CREATED);
+    public ResponseEntity<APIResponse<Customer>> createCustomer(@Valid @RequestBody CustomerRequest request, BindingResult result) {
+        if (result.hasErrors()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>(false, "Dữ liệu không hợp lệ", null, extractErrors(result)));
+        }
+        try {
+            Customer customer = customerService.createCustomer(request);
+            APIResponse.DataWrapper<Customer> data = new APIResponse.DataWrapper<>(List.of(customer), null);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(new APIResponse<>(true, "Tạo khách hàng thành công", data, null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>(false, e.getMessage(), null, null));
+        }
     }
 
-    // Update customer
     @PutMapping("/{customerId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'CUSTOMER')")
-    public ResponseEntity<APIResponse<Customer>> updateCustomer(@PathVariable Integer customerId, @Valid @RequestBody CustomerRequest request, Authentication authentication) {
-        Customer customer = customerService.updateCustomer(customerId, request, authentication.getName());
-        APIResponse.DataWrapper<Customer> data = new APIResponse.DataWrapper<>(List.of(customer), null);
-        return new ResponseEntity<>(new APIResponse<>(true, "Customer updated successfully", data, null, null), HttpStatus.OK);
+    public ResponseEntity<APIResponse<Customer>> updateCustomer(@PathVariable Integer customerId, @Valid @RequestBody CustomerRequest request, BindingResult result, Authentication authentication) {
+        if (result.hasErrors()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>(false, "Dữ liệu không hợp lệ", null, extractErrors(result)));
+        }
+        try {
+            Customer customer = customerService.updateCustomer(customerId, request, authentication.getName());
+            APIResponse.DataWrapper<Customer> data = new APIResponse.DataWrapper<>(List.of(customer), null);
+            return ResponseEntity.ok(new APIResponse<>(true, "Cập nhật khách hàng thành công", data, null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>(false, e.getMessage(), null, null));
+        }
     }
 
-    // Update customer status
     @PutMapping("/{customerId}/status")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<APIResponse<String>> updateCustomerStatus(@PathVariable Integer customerId, @RequestBody Customer.CustomerStatus status) {
-        customerService.updateCustomerStatus(customerId, status);
-        APIResponse.DataWrapper<String> data = new APIResponse.DataWrapper<>(List.of("Customer status updated"), null);
-        return new ResponseEntity<>(new APIResponse<>(true, "Customer status updated successfully", data, null, null), HttpStatus.OK);
+        try {
+            customerService.updateCustomerStatus(customerId, status);
+            APIResponse.DataWrapper<String> data = new APIResponse.DataWrapper<>(List.of("Đã cập nhật trạng thái khách hàng"), null);
+            return ResponseEntity.ok(new APIResponse<>(true, "Cập nhật trạng thái khách hàng thành công", data, null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>(false, e.getMessage(), null, null));
+        }
     }
 
-    // Soft delete customer
     @DeleteMapping("/{customerId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<APIResponse<String>> softDeleteCustomer(@PathVariable Integer customerId) {
-        boolean deleted = customerService.softDeleteCustomer(customerId);
-        APIResponse.DataWrapper<String> data = new APIResponse.DataWrapper<>(List.of(deleted ? "Customer soft deleted" : "Customer not found"), null);
-        return new ResponseEntity<>(new APIResponse<>(deleted, deleted ? "Khách hàng đã được xóa mềm" : "Không tìm thấy khách hàng", data, null, null), deleted ? HttpStatus.OK : HttpStatus.NOT_FOUND);
+        try {
+            boolean deleted = customerService.softDeleteCustomer(customerId);
+            APIResponse.DataWrapper<String> data = new APIResponse.DataWrapper<>(List.of(deleted ? "Khách hàng đã được xóa mềm" : "Không tìm thấy khách hàng"), null);
+            return ResponseEntity.status(deleted ? HttpStatus.OK : HttpStatus.NOT_FOUND)
+                    .body(new APIResponse<>(deleted, deleted ? "Khách hàng đã được xóa mềm" : "Không tìm thấy khách hàng", data, null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>(false, e.getMessage(), null, null));
+        }
     }
 
-    // Get purchase history of customer
+    /// ======================= QUẢN LÝ LỊCH SỬ GIAO DỊCH CHO KHÁCH HÀNG (START)=====================
+
+
     @GetMapping("/{customerId}/purchases")
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ResponseEntity<APIResponse<Purchase>> getPurchases(@PathVariable Integer customerId) {
-        List<Purchase> purchases = purchaseService.getPurchasesByCustomerId(customerId);
-        APIResponse.DataWrapper<Purchase> data = new APIResponse.DataWrapper<>(purchases, null);
-        return new ResponseEntity<>(new APIResponse<>(true, "Lịch sử mua hàng đã lấy thành công", data, null, null), HttpStatus.OK);
+        try {
+            List<Purchase> purchases = purchaseService.getPurchasesByCustomerId(customerId);
+            APIResponse.DataWrapper<Purchase> data = new APIResponse.DataWrapper<>(purchases, null);
+            return ResponseEntity.ok(new APIResponse<>(true, "Lịch sử mua hàng đã lấy thành công", data, null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>(false, e.getMessage(), null, null));
+        }
     }
 
-    // Add new purchase
     @PostMapping("/{customerId}/purchases")
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
-    public ResponseEntity<APIResponse<Purchase>> addPurchase(@PathVariable Integer customerId, @Valid @RequestBody PurchaseRequest request) {
-        Purchase purchase = purchaseService.addPurchase(customerId, request);
-        APIResponse.DataWrapper<Purchase> data = new APIResponse.DataWrapper<>(List.of(purchase), null);
-        return new ResponseEntity<>(new APIResponse<>(true, "Thêm giao dịch thành công", data, null, null), HttpStatus.CREATED);
+    public ResponseEntity<APIResponse<Purchase>> addPurchase(@PathVariable Integer customerId, @Valid @RequestBody PurchaseRequest request, BindingResult result) {
+        if (result.hasErrors()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>(false, "Dữ liệu không hợp lệ", null, extractErrors(result)));
+        }
+        try {
+            Purchase purchase = purchaseService.addPurchase(customerId, request);
+            APIResponse.DataWrapper<Purchase> data = new APIResponse.DataWrapper<>(List.of(purchase), null);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(new APIResponse<>(true, "Thêm giao dịch thành công", data, null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>(false, e.getMessage(), null, null));
+        }
     }
 
-    // Update purchase
     @PutMapping("/{customerId}/purchases/{purchaseId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
-    public ResponseEntity<APIResponse<Purchase>> updatePurchase(@PathVariable Integer customerId, @PathVariable Integer purchaseId, @Valid @RequestBody PurchaseRequest request) {
-        Purchase purchase = purchaseService.updatePurchase(customerId, purchaseId, request);
-        APIResponse.DataWrapper<Purchase> data = new APIResponse.DataWrapper<>(purchase != null ? List.of(purchase) : List.of(), null);
-        return new ResponseEntity<>(new APIResponse<>(purchase != null, purchase != null ? "Cập nhật giao dịch thành công" : "Không tìm thấy giao dịch", data, null, null), purchase != null ? HttpStatus.OK : HttpStatus.NOT_FOUND);
+    public ResponseEntity<APIResponse<Purchase>> updatePurchase(@PathVariable Integer customerId, @PathVariable Integer purchaseId, @Valid @RequestBody PurchaseRequest request, BindingResult result) {
+        if (result.hasErrors()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>(false, "Dữ liệu không hợp lệ", null, extractErrors(result)));
+        }
+        try {
+            Purchase purchase = purchaseService.updatePurchase(customerId, purchaseId, request);
+            APIResponse.DataWrapper<Purchase> data = new APIResponse.DataWrapper<>(purchase != null ? List.of(purchase) : List.of(), null);
+            return ResponseEntity.status(purchase != null ? HttpStatus.OK : HttpStatus.NOT_FOUND)
+                    .body(new APIResponse<>(purchase != null, purchase != null ? "Cập nhật giao dịch thành công" : "Không tìm thấy giao dịch", data, null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>(false, e.getMessage(), null, null));
+        }
     }
 
-    // Delete purchase
     @DeleteMapping("/{customerId}/purchases/{purchaseId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<APIResponse<String>> deletePurchase(@PathVariable Integer customerId, @PathVariable Integer purchaseId) {
-        boolean deleted = purchaseService.deletePurchase(customerId, purchaseId);
-        APIResponse.DataWrapper<String> data = new APIResponse.DataWrapper<>(List.of(deleted ? "Purchase deleted" : "Purchase not found"), null);
-        return new ResponseEntity<>(new APIResponse<>(deleted, deleted ? "Xóa giao dịch thành công" : "Không tìm thấy giao dịch", data, null, null), deleted ? HttpStatus.OK : HttpStatus.NOT_FOUND);
+        try {
+            boolean deleted = purchaseService.deletePurchase(customerId, purchaseId);
+            APIResponse.DataWrapper<String> data = new APIResponse.DataWrapper<>(List.of(deleted ? "Đã xóa giao dịch mua hàng" : "Không tìm thấy giao dịch mua hàng"), null);
+            return ResponseEntity.status(deleted ? HttpStatus.OK : HttpStatus.NOT_FOUND)
+                    .body(new APIResponse<>(deleted, deleted ? "Xóa giao dịch thành công" : "Không tìm thấy giao dịch", data, null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new APIResponse<>(false, e.getMessage(), null, null));
+        }
     }
+
+    /// ======================= QUẢN LÝ LỊCH SỬ GIAO DỊCH CHO KHÁCH HÀNG (END)=====================
+
+
 }

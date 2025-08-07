@@ -5,6 +5,7 @@ import com.tien.project.config.principal.CustomUserDetails;
 import com.tien.project.dto.request.UserLogin;
 import com.tien.project.dto.request.UserRegister;
 import com.tien.project.dto.request.UserUpdate;
+import com.tien.project.dto.request.ChangePasswordRequest;
 import com.tien.project.dto.response.JWTResponse;
 import com.tien.project.entity.*;
 import com.tien.project.repository.*;
@@ -25,7 +26,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.UUID;
 
 @Service
@@ -64,8 +64,13 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User registerUser(UserRegister userRegister) {
+        // Kiểm tra trùng email
+        if (userRepository.findByEmail(userRegister.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("Email đã được sử dụng");
+        }
+
         Role customerRole = roleRepository.findByRoleName("CUSTOMER")
-                .orElseThrow(() -> new EntityNotFoundException("Customer role not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy vai trò CUSTOMER"));
 
         User user = User.builder()
                 .username(userRegister.getUsername())
@@ -75,7 +80,7 @@ public class UserServiceImpl implements UserService {
                 .phoneNumber(userRegister.getPhoneNumber())
                 .isActive(true)
                 .emailVerified(false)
-                .build(); // Không gán roles trực tiếp ở đây
+                .build();
 
         User savedUser = userRepository.save(user);
 
@@ -83,13 +88,8 @@ public class UserServiceImpl implements UserService {
         UserRole userRole = new UserRole();
         userRole.setUserId(savedUser.getUserId());
         userRole.setRoleId(customerRole.getRoleId());
-        userRole.setAssignedAt(LocalDateTime.now()); // Gán giá trị cho assigned_at
+        userRole.setAssignedAt(LocalDateTime.now());
         userRoleRepository.save(userRole);
-
-//        Customer customer = new Customer();
-//        customer.setUserId(savedUser.getUserId());
-//        customer.setStatus(Customer.CustomerStatus.ACTIVE);
-//        customerRepository.save(customer);
 
         sendVerificationEmail(savedUser);
 
@@ -98,6 +98,16 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public JWTResponse login(UserLogin userLogin) {
+        User user = userRepository.findByUsername(userLogin.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản"));
+
+        if (!user.getEmailVerified()) {
+            throw new IllegalArgumentException("Email chưa xác thực");
+        }
+        if (!user.getIsActive()) {
+            throw new IllegalArgumentException("Tài khoản đã bị khóa");
+        }
+
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(userLogin.getUsername(), userLogin.getPassword()));
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
@@ -105,8 +115,7 @@ public class UserServiceImpl implements UserService {
 
         Session session = new Session();
         session.setSessionId(token);
-        session.setUserId(userRepository.findByUsername(userDetails.getUsername())
-                .orElseThrow(() -> new EntityNotFoundException("User not found")).getUserId());
+        session.setUserId(user.getUserId());
         session.setExpiryTime(LocalDateTime.now().plusSeconds(jwtProvider.getJwtExpire() / 1000));
         sessionRepository.save(session);
 
@@ -124,14 +133,14 @@ public class UserServiceImpl implements UserService {
     @Override
     public boolean verifyEmail(String token) {
         EmailVerificationToken verificationToken = tokenRepository.findByToken(token)
-                .orElseThrow(() -> new EntityNotFoundException("Invalid token"));
+                .orElseThrow(() -> new EntityNotFoundException("Token không hợp lệ"));
 
         if (verificationToken.getExpiryDate().isBefore(LocalDateTime.now())) {
             return false;
         }
 
         User user = userRepository.findById(verificationToken.getUserId())
-                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng"));
         user.setEmailVerified(true);
         userRepository.save(user);
         tokenRepository.delete(verificationToken);
@@ -151,20 +160,26 @@ public class UserServiceImpl implements UserService {
         try {
             MimeMessageHelper helper = new MimeMessageHelper(message, true);
             helper.setTo(user.getEmail());
-            helper.setSubject("Verify Your Email Address");
-            helper.setText("Please click the following link to verify your email: " +
-                    "http://localhost:8080/api/v1/auth/verify-email/" + token);
+            helper.setSubject("Xác thực địa chỉ email của bạn");
+            helper.setText(
+                    "<h1>Xác thực Email</h1>" +
+                            "<p>Vui lòng nhận token xác minh của bạn:</p>" +
+                             token  +
+                            "<p>Mã xác minh này sẽ hết hạn sau 24 giờ.</p>",
+                    true
+            );
             mailSender.send(message);
+            log.info("Đã gửi email xác thực tới {}", user.getEmail());
         } catch (MessagingException e) {
-            log.error("Failed to send verification email", e);
-            throw new RuntimeException("Failed to send verification email");
+            log.error("Không thể gửi email xác thực tới {}", user.getEmail(), e);
+            throw new RuntimeException("Không thể gửi email xác thực");
         }
     }
 
     @Override
     public User getUserByUsername(String username) {
         return userRepository.findByUsername(username)
-                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng"));
     }
 
     @Override
@@ -177,11 +192,17 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void changePassword(String username, String newPassword) {
-//        User user = getUserByUsername(username);
-//        user.setPasswordHash(passwordEncoder.encode(newPassword));
-//        user.setUpdatedAt(LocalDateTime.now());
-//        userRepository.save(user);
+    public void changePassword(String username, ChangePasswordRequest changePasswordRequest) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User không tồn tại"));
+
+        if (!passwordEncoder.matches(changePasswordRequest.getOldPassword(), user.getPasswordHash())) {
+            throw new IllegalArgumentException("Mật khẩu cũ không đúng");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(changePasswordRequest.getNewPassword()));
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
     }
 
     @Override
@@ -192,7 +213,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public User getUserById(Integer id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng"));
     }
 
     @Override
@@ -200,7 +221,6 @@ public class UserServiceImpl implements UserService {
         User user = getUserById(id);
         user.setFullName(userUpdate.getFullName());
         user.setPhoneNumber(userUpdate.getPhoneNumber());
-//        user.setEmail(userUpdate.getEmail());
         user.setUpdatedAt(LocalDateTime.now());
         return userRepository.save(user);
     }

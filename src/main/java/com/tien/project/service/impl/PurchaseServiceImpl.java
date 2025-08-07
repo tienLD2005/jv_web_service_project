@@ -7,8 +7,10 @@ import com.tien.project.service.PurchaseService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class PurchaseServiceImpl implements PurchaseService {
@@ -56,5 +58,16 @@ public class PurchaseServiceImpl implements PurchaseService {
             return true;
         }
         return false;
+    }
+
+    @Override
+    public List<Map<String, Object>> getRevenueReportBetween(LocalDate start, LocalDate end) {
+        LocalDateTime endPlusOne = end.plusDays(1).atStartOfDay();
+        return purchaseRepository.getRevenueReportBetween(start, endPlusOne);
+    }
+
+    @Override
+    public List<Map<String, Object>> getTopCustomers(int limit) {
+        return purchaseRepository.getTopCustomers(limit);
     }
 }

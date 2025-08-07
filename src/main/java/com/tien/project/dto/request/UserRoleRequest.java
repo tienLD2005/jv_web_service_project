@@ -9,9 +9,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class UserRoleRequest {
-    @NotNull(message = "User ID is required")
+
+    @NotNull(message = "ID người dùng không được để trống")
     private Integer userId;
 
-    @NotNull(message = "Role ID is required")
+    @NotNull(message = "ID vai trò không được để trống")
     private Integer roleId;
 }

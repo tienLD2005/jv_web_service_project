@@ -2,7 +2,7 @@ package com.tien.project.controller;
 
 import com.tien.project.dto.response.APIResponse;
 import com.tien.project.dto.response.ErrorDetail;
-import com.tien.project.repository.PurchaseRepository;
+import com.tien.project.service.PurchaseService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -13,8 +13,6 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
@@ -24,7 +22,7 @@ import java.util.Map;
 public class SalesAnalyticsController {
 
     @Autowired
-    private PurchaseRepository purchaseRepository;
+    private PurchaseService purchaseService;
 
     @GetMapping("/revenue")
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
@@ -34,29 +32,21 @@ public class SalesAnalyticsController {
             Authentication authentication
     ) {
         try {
-            // Log user roles and parameters for debugging
-            System.out.println("User roles for /revenue: " + authentication.getAuthorities());
-            System.out.println("Request parameters: start=" + start + ", end=" + end);
-
-            // Kiểm tra xem start có sau end không
             if (start.isAfter(end)) {
                 APIResponse<Map<String, Object>> errorResponse = new APIResponse<>(
                         false,
                         "Ngày bắt đầu không được sau ngày kết thúc",
                         null,
-                        List.of(new ErrorDetail("INVALID_DATE_RANGE", "Start date must not be after end date")),
-                        null
+                        List.of(new ErrorDetail("INVALID_DATE_RANGE", "Start date must not be after end date"))
                 );
                 return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
             }
 
-            // Chuyển end sang LocalDateTime, cộng thêm 1 ngày
-            LocalDateTime endPlusOne = end.plusDays(1).atStartOfDay();
-
-            List<Map<String, Object>> report = purchaseRepository.getRevenueReportBetween(start, endPlusOne);
+            List<Map<String, Object>> report = purchaseService.getRevenueReportBetween(start, end);
             APIResponse.DataWrapper<Map<String, Object>> data = new APIResponse.DataWrapper<>(report, null);
             APIResponse<Map<String, Object>> response = new APIResponse<>(true, "Lấy báo cáo doanh thu theo ngày thành công", data, null, null);
             return new ResponseEntity<>(response, HttpStatus.OK);
+
         } catch (DateTimeParseException e) {
             APIResponse<Map<String, Object>> errorResponse = new APIResponse<>(
                     false,
@@ -84,11 +74,7 @@ public class SalesAnalyticsController {
             @RequestParam(defaultValue = "5") int limit,
             Authentication authentication
     ) {
-        // Log user roles and parameter for debugging
-        System.out.println("User roles for /top-customers: " + authentication.getAuthorities());
-        System.out.println("Request parameter: limit=" + limit);
-
-        List<Map<String, Object>> topCustomers = purchaseRepository.getTopCustomers(limit);
+        List<Map<String, Object>> topCustomers = purchaseService.getTopCustomers(limit);
         APIResponse.DataWrapper<Map<String, Object>> data = new APIResponse.DataWrapper<>(topCustomers, null);
         APIResponse<Map<String, Object>> response = new APIResponse<>(true, "Lấy danh sách khách hàng chi tiêu nhiều nhất thành công", data, null, null);
         return new ResponseEntity<>(response, HttpStatus.OK);

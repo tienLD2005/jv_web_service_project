@@ -42,6 +42,11 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     public CustomerGroup createCustomerGroup(CustomerGroupRequest request) {
+        customerGroupRepository.findByGroupName(request.getGroupName())
+                .ifPresent(group -> {
+                    throw new IllegalArgumentException("Tên nhóm khách hàng đã tồn tại.");
+                });
+
         CustomerGroup group = new CustomerGroup();
         group.setGroupName(request.getGroupName());
         group.setDescription(request.getDescription());
@@ -51,7 +56,14 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public CustomerGroup updateCustomerGroup(Integer groupId, CustomerGroupRequest request) {
         CustomerGroup group = customerGroupRepository.findById(groupId)
-                .orElseThrow(() -> new EntityNotFoundException("Customer group not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy nhóm khách hàng."));
+
+        customerGroupRepository.findByGroupName(request.getGroupName())
+                .filter(existingGroup -> !existingGroup.getGroupId().equals(groupId))
+                .ifPresent(existingGroup -> {
+                    throw new IllegalArgumentException("Tên nhóm khách hàng đã tồn tại.");
+                });
+
         group.setGroupName(request.getGroupName());
         group.setDescription(request.getDescription());
         group.setUpdatedAt(LocalDateTime.now());
@@ -61,19 +73,19 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public void deleteCustomerGroup(Integer groupId) {
         CustomerGroup group = customerGroupRepository.findById(groupId)
-                .orElseThrow(() -> new EntityNotFoundException("Customer group not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy nhóm khách hàng."));
         customerGroupRepository.delete(group);
     }
 
     @Override
     public Page<Customer> getCustomers(Pageable pageable, String status, Integer groupId, String username) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng."));
 
         if (user.getRoles().stream().noneMatch(role -> role.getRoleName().equals("ADMIN") || role.getRoleName().equals("STAFF"))) {
             Optional<Customer> customerOpt = customerRepository.findByUserId(user.getUserId());
             if (customerOpt.isEmpty()) {
-                throw new EntityNotFoundException("Customer not found");
+                throw new EntityNotFoundException("Không tìm thấy thông tin khách hàng.");
             }
             List<Customer> customerList = Collections.singletonList(customerOpt.get());
             return new PageImpl<>(customerList, pageable, customerList.size());
@@ -93,13 +105,13 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public Customer getCustomerDetails(Integer customerId, String username) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng."));
         Customer customer = customerRepository.findById(customerId)
-                .orElseThrow(() -> new EntityNotFoundException("Customer not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy khách hàng."));
 
         if (user.getRoles().stream().noneMatch(role -> role.getRoleName().equals("ADMIN") || role.getRoleName().equals("STAFF"))
                 && !Objects.equals(customer.getUserId(), user.getUserId())) {
-            throw new AccessDeniedException("You can only view your own customer details");
+            throw new AccessDeniedException("Bạn chỉ có thể xem thông tin khách hàng của chính mình.");
         }
         return customer;
     }
@@ -107,10 +119,10 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public Customer createCustomer(CustomerRequest request) {
         User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng."));
 
         if (customerRepository.findByUserId(request.getUserId()).isPresent()) {
-            throw new IllegalStateException("Customer already exists for this user");
+            throw new IllegalStateException("Khách hàng đã tồn tại cho người dùng này.");
         }
 
         Customer customer = new Customer();
@@ -126,13 +138,13 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public Customer updateCustomer(Integer customerId, CustomerRequest request, String username) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng."));
         Customer customer = customerRepository.findById(customerId)
-                .orElseThrow(() -> new EntityNotFoundException("Customer not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy khách hàng."));
 
         if (user.getRoles().stream().noneMatch(role -> role.getRoleName().equals("ADMIN"))
                 && !Objects.equals(customer.getUserId(), user.getUserId())) {
-            throw new AccessDeniedException("You can only update your own customer details");
+            throw new AccessDeniedException("Bạn chỉ có thể cập nhật thông tin của chính mình.");
         }
 
         customer.setGroupId(request.getGroupId());
@@ -146,7 +158,7 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public void updateCustomerStatus(Integer customerId, Customer.CustomerStatus status) {
         Customer customer = customerRepository.findById(customerId)
-                .orElseThrow(() -> new EntityNotFoundException("Customer not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy khách hàng."));
         customer.setStatus(status);
         customer.setUpdatedAt(LocalDateTime.now());
         customerRepository.save(customer);

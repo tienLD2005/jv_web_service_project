@@ -10,10 +10,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class CustomerGroupRequest {
-    @NotBlank(message = "Group name is required")
-    @Size(max = 100, message = "Group name must not exceed 100 characters")
+
+    @NotBlank(message = "Tên nhóm không được để trống")
+    @Size(max = 100, message = "Tên nhóm không được vượt quá 100 ký tự")
     private String groupName;
 
-    @Size(max = 255, message = "Description must not exceed 255 characters")
+    @Size(max = 255, message = "Mô tả không được vượt quá 255 ký tự")
     private String description;
 }
